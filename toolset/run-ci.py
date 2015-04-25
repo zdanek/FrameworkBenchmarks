@@ -387,9 +387,6 @@ class CIRunnner:
     sudo sed -i 's|travis:x:\(.*\):|travis:x:\\1:testrunner|g' /etc/group
     # Maybe unneeded - add the travis user to the testrunner group
     sudo sed -i 's|testrunner:x:\(.*\):|testrunner:x:\\1:travis|g' /etc/group
-    # Need to add testrunner to the sudoers group AND default him to a sudoers
-    # because the travis user isn't in the sudo group - he's a sudoer.
-    echo "testrunner ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
     # Set the default shell for testrunner to /bin/bash
     sudo sed -i 's|/home/testrunner:/bin/sh|/home/testrunner:/bin/bash|g' /etc/passwd
 
