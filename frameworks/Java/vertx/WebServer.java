@@ -119,10 +119,10 @@ public class WebServer extends AbstractVerticle implements Handler<HttpServerReq
       new JsonObject()
           .put(TEXT_ACTION, TEXT_FIND)
           .put(TEXT_COLLECTION, TEXT_FORTUNE),
-      new Handler<Message<JsonObject>>() {
+      new Handler<AsyncResult<Message<JsonObject>>>() {
         @Override
-        public void handle(Message<JsonObject> reply) {
-          JsonArray results = reply.body().getJsonArray(TEXT_RESULTS);
+        public void handle(AsyncResult<Message<JsonObject>> reply) {
+          JsonArray results = reply.result().body().getJsonArray(TEXT_RESULTS);
 
           List<Fortune> fortunes = new ArrayList<>();
           for (Object fortune: results) {
@@ -159,9 +159,9 @@ public class WebServer extends AbstractVerticle implements Handler<HttpServerReq
   }
 
   private void handleDbMongo(final HttpServerRequest req) {
-    findRandom(new Handler<Message<JsonObject>>() {
+    findRandom(new Handler<AsyncResult<Message<JsonObject>>>() {
       @Override
-      public void handle(Message<JsonObject> reply) {
+      public void handle(AsyncResult<Message<JsonObject>> reply) {
         JsonObject world = getResultFromReply(reply);
         String result = world.encode();
         sendResponse(req, result);
@@ -169,8 +169,8 @@ public class WebServer extends AbstractVerticle implements Handler<HttpServerReq
     });
   }
 
-  private JsonObject getResultFromReply(Message<JsonObject> reply) {
-    JsonObject body = reply.body();
+  private JsonObject getResultFromReply(AsyncResult<Message<JsonObject>> reply) {
+    JsonObject body = reply.result().body();
     JsonObject world = body.getJsonObject(TEXT_RESULT);
     Object id = world.remove(UNDERSCORE_ID);
     world.put(TEXT_ID, Integer.valueOf(((Double) id).intValue()));

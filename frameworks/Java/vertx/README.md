@@ -1,6 +1,6 @@
-# Vertx 2.x Benchmarking Test
+# Vertx 3.x Benchmarking Test
 
-This is the vertx 2.x portion of a [benchmarking test suite](../) comparing a variety of web development platforms.
+This is the vertx 3.x portion of a [benchmarking test suite](../) comparing a variety of web development platforms.
 
 ### Plaintext Test
 
@@ -28,8 +28,8 @@ This is the vertx 2.x portion of a [benchmarking test suite](../) comparing a va
 
 ## Versions
 
-* [Java OpenJDK 1.7.0_79](http://openjdk.java.net/)
-* [vertx 2.1.5](http://vertx.io/)
+* [Java 8](http://openjdk.java.net/)
+* [vertx 3.0.0](http://vertx.io/)
 
 
 ## Test URLs
