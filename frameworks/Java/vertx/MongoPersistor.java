@@ -32,10 +32,11 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
 
     @Override
     public void start() {
+        super.start();
         LOG.info("MongoPersistor is starting");
         address = getOptionalStringConfig("address", "vertx.mongopersistor");
-        LOG.info(String.format("using server [%s]", address));
 
+        LOG.info(String.format("using server [%s]", address));
         host = getOptionalStringConfig("host", "localhost");
 
         port = getOptionalIntConfig("port", 27017);
