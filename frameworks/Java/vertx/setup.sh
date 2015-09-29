@@ -1,9 +1,11 @@
 #!/bin/bash
 
-# load java environment variables
-source $IROOT/java8.installed
+fw_depends java8 vertx
 
-sed -i 's|host: \x27.*\x27|host: \x27'"${DBHOST}"'\x27|g' app.js
+# load java environment variables
+#source $IROOT/java8.installed
+
+#sed -i 's|host: \x27.*\x27|host: \x27'"${DBHOST}"'\x27|g' app.groovy
 
 export JAVA_OPTS="-server -XX:+UseNUMA -XX:+UseParallelGC -XX:+AggressiveOpts"
-${IROOT}/vert.x-3.0.0/bin/vertx run app.js &
+${VERTX_HOME}/bin/vertx run app.groovy &

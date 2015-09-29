@@ -12,7 +12,7 @@ import (
 
 const (
 	// Database
-	connectionString   = "benchmarkdbuser:benchmarkdbpass@tcp(localhost:3306)/hello_world"
+	connectionString   = "benchmarkdbuser:benchmarkdbpass@tcp(127.0.0.1:3306)/hello_world"
 	worldRowCount      = 10000
 	macIdleConnection  = 30
 	maxConnectionCount = 256
