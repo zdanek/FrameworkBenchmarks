@@ -68,7 +68,7 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
         String action = message.body().getString("action");
 
         if (action == null) {
-            sendError(message, "action must be specified", res.cause());
+            sendError(message, "action must be specified");
             return;
         }
 
@@ -119,13 +119,12 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
                     runCommand(message);
                     break;*/
                 default:
-                    sendError(message, "Invalid action: " + action, res.cause());
+                    sendError(message, "Invalid action: " + action);
             }
         } catch (MongoException e) {
             sendError(message, e.getMessage(), e);
         }
     }
-
 
     private void doUpdate(Message<JsonObject> message) {
         String collection = getMandatoryString("collection", message);
