@@ -1,19 +1,13 @@
 import com.mongodb.MongoException;
 import com.mongodb.ReadPreference;
-import com.mongodb.ServerAddress;
-import com.mongodb.WriteConcern;
-import com.mongodb.async.client.MongoClient;
 import io.vertx.core.Handler;
-import io.vertx.core.Starter;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import io.vertx.ext.mongo.MongoClient;
 
-import javax.net.ssl.SSLSocketFactory;
-import java.net.UnknownHostException;
-import java.util.List;
+import java.util.Optional;
 
 /**
  * Based on  <a href="https://github.com/vert-x/mod-mongo-persistor/blob/master/src/main/java/org/vertx/mods/MongoPersistor.java">MogoPersistor</a>
@@ -33,8 +27,7 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
     protected int socketTimeout;
     protected boolean useSSL;
 
-    protected Mongo mongo;
-    protected DB db;
+    private MongoClient mongoClient;
     private boolean useMongoTypes;
 
     @Override
@@ -56,42 +49,13 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
         useSSL = getOptionalBooleanConfig("use_ssl", false);
         useMongoTypes = getOptionalBooleanConfig("use_mongo_types", false);
 
-        JsonArray seedsProperty = config.getJsonArray("seeds");
-
-        try {
-            MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
-            builder.connectionsPerHost(poolSize);
-            builder.autoConnectRetry(autoConnectRetry);
-            builder.socketTimeout(socketTimeout);
-            builder.readPreference(readPreference);
-
-            if (useSSL) {
-                builder.socketFactory(SSLSocketFactory.getDefault());
-            }
-
-            if (seedsProperty == null) {
-                ServerAddress address = new ServerAddress(host, port);
-                mongo = new MongoClient(address, builder.build());
-            } else {
-                List<ServerAddress> seeds = makeSeeds(seedsProperty);
-                mongo = new MongoClient(seeds, builder.build());
-            }
-
-            db = mongo.getDB(dbName);
-            if (username != null && password != null) {
-                db.authenticate(username, password.toCharArray());
-            }
-        } catch (UnknownHostException e) {
-            logger.error("Failed to connect to mongo server", e);
-        }
-        eb.consumer(address, this);
+        mongoClient = MongoClient.createShared(vertx, config());
+        vertx.eventBus().consumer(address, this);
     }
 
     @Override
     public void stop() {
-        if (mongo != null) {
-            mongo.close();
-        }
+        Optional.ofNullable(mongoClient).ifPresent(MongoClient::close);
     }
 
     @Override
@@ -116,10 +80,10 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
                     doUpdate(message);
                     break;
                 case "find":
-                    doFind(message);
+//                    doFind(message);
                     break;
                 case "findone":
-                    doFindOne(message);
+//                    doFindOne(message);
                     break;
  /*               // no need for a backwards compatible "findAndModify" since this feature was added after
                 case "find_and_modify":
@@ -167,15 +131,30 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
         if (criteriaJson == null) {
             return;
         }
-        DBObject criteria = jsonToDBObject(criteriaJson);
 
         JsonObject objNewJson = getMandatoryObject("objNew", message);
         if (objNewJson == null) {
             return;
         }
-        DBObject objNew = jsonToDBObject(objNewJson);
+        JsonObject update = new JsonObject().put("$set", objNewJson);
+
+        mongoClient.update(collection, criteriaJson, update, res -> {
+
+            if (res.succeeded()) {
+                JsonObject reply = new JsonObject();
+                reply.put("number", Integer.parseInt(res.result().toString()));
+                sendOK(message, reply);
+            } else {
+                LOG.error("Error updating document", res.cause());
+                sendError(message, res.cause().getMessage());
+            }
+        });
+
+
+/*
         Boolean upsert = message.body().getBoolean("upsert", false);
         Boolean multi = message.body().getBoolean("multi", false);
+
         DBCollection coll = db.getCollection(collection);
         WriteConcern writeConcern = WriteConcern.valueOf(getOptionalStringConfig("writeConcern", ""));
         // Backwards compatibility
@@ -186,16 +165,10 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
         if (writeConcern == null) {
             writeConcern = db.getWriteConcern();
         }
-        WriteResult res = coll.update(criteria, objNew, upsert, multi, writeConcern);
-        if (res.getError() == null) {
-            JsonObject reply = new JsonObject();
-            reply.putNumber("number", res.getN());
-            sendOK(message, reply);
-        } else {
-            sendError(message, res.getError());
-        }
-    }
+        WriteResult res = coll.update(criteria, objNew, upsert, multi, writeConcern);*/
 
+    }
+/*
     private void doFindOne(Message<JsonObject> message) {
         String collection = getMandatoryString("collection", message);
         if (collection == null) {
@@ -273,5 +246,5 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
         }
         sendBatch(message, cursor, batchSize, timeout);
     }
-
+*/
 }

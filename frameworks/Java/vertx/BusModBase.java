@@ -16,7 +16,6 @@
 
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -31,16 +30,14 @@ import io.vertx.core.logging.LoggerFactory;
  */
 public abstract class BusModBase extends AbstractVerticle {
 
-    protected EventBus eb;
-    protected JsonObject config;
-    protected Logger logger;
-
+    private Logger logger;
+    private JsonObject config;
 
     /**
      * Start the busmod
      */
     public void start() {
-        eb = vertx.eventBus();
+        config = config();
         logger = LoggerFactory.getLogger(getClass());
     }
 
