@@ -12,6 +12,7 @@ public class App {
                 .put("address", "hello.persistor")
                 .put("db_name", "hello_world")
                 .put("host", "127.0.0.1")
+                .put("port", 27017)
                 .put("maxPoolSize", 100);
 
         System.out.println("Starting vertx app");

@@ -40,8 +40,8 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
         LOG.info("MongoPersistor is starting");
         address = getOptionalStringConfig("address", "vertx.mongopersistor");
 
-        LOG.info(String.format("using server [%s]", address));
         host = getOptionalStringConfig("host", "localhost");
+        LOG.info(String.format("using server [%s]", host));
 
         port = getOptionalIntConfig("port", 27017);
         dbName = getOptionalStringConfig("db_name", "default_db");
@@ -53,8 +53,10 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
         socketTimeout = getOptionalIntConfig("socket_timeout", 60000);
         useSSL = getOptionalBooleanConfig("use_ssl", false);
         useMongoTypes = getOptionalBooleanConfig("use_mongo_types", false);
+        System.out.println("config is" + config());
 
         mongoClient = MongoClient.createShared(vertx, config());
+
         vertx.eventBus().consumer(address, this);
     }
 
