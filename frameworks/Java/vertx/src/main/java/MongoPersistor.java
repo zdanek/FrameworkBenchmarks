@@ -148,8 +148,10 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
 
             if (res.succeeded()) {
                 JsonObject reply = new JsonObject();
-                reply.put("number", Integer.parseInt(res.result().toString()));
-                sendOK(message, reply);
+//                reply.put("number", Integer.parseInt(res.result().toString()));
+                if (message.replyAddress() != null) {
+                    sendOK(message, reply);
+                }
             } else {
                 LOG.error("Error updating document", res.cause());
                 sendError(message, res.cause().getMessage(), res.cause());
