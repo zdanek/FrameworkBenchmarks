@@ -10,6 +10,8 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -21,6 +23,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class WebServer extends AbstractVerticle implements Handler<HttpServerRequest> {
 
+  private static Logger LOG = LoggerFactory.getLogger(WebServer.class);
   private final Buffer helloWorldBuffer = Buffer.buffer("Hello, World!");
   private final String helloWorldContentLength = String.valueOf(helloWorldBuffer.length());
   private final DateFormat DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyyy HH:mm:ss z");
@@ -69,6 +72,7 @@ public class WebServer extends AbstractVerticle implements Handler<HttpServerReq
 
   @Override
   public void start() {
+    LOG.info("WebStarver is starting...");
     try { ftlTemplate = new Template(TEXT_FORTUNE, new StringReader(TEMPLATE_FORTUNE), new Configuration(Configuration.VERSION_2_3_22)); } catch (Exception ex) { ex.printStackTrace(); }
     vertx.createHttpServer().requestHandler(WebServer.this).listen(8080);
     vertx.setPeriodic(1000, new Handler<Long>() {
