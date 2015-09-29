@@ -61,11 +61,7 @@ public abstract class BusModBase extends AbstractVerticle {
         sendStatus("ok", message, json);
     }
 
-    protected void sendError(Message<JsonObject> message, String error) {
-        sendError(message, error, null);
-    }
-
-    protected void sendError(Message<JsonObject> message, String error, Exception e) {
+    protected void sendError(Message<JsonObject> message, String error, Throwable e) {
         logger.error(error, e);
         JsonObject json = new JsonObject().put("status", "error").put("message", error);
         message.reply(json);
@@ -74,7 +70,7 @@ public abstract class BusModBase extends AbstractVerticle {
     protected String getMandatoryString(String field, Message<JsonObject> message) {
         String val = message.body().getString(field);
         if (val == null) {
-            sendError(message, field + " must be specified");
+            sendError(message, field + " must be specified", null);
         }
         return val;
     }
@@ -82,7 +78,7 @@ public abstract class BusModBase extends AbstractVerticle {
     protected JsonObject getMandatoryObject(String field, Message<JsonObject> message) {
         JsonObject val = message.body().getJsonObject(field);
         if (val == null) {
-            sendError(message, field + " must be specified");
+            sendError(message, field + " must be specified", null);
         }
         return val;
     }

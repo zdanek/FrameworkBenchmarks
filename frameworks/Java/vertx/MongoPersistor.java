@@ -1,12 +1,16 @@
 import com.mongodb.MongoException;
 import com.mongodb.ReadPreference;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import io.vertx.ext.mongo.FindOptions;
 import io.vertx.ext.mongo.MongoClient;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -64,7 +68,7 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
         String action = message.body().getString("action");
 
         if (action == null) {
-            sendError(message, "action must be specified");
+            sendError(message, "action must be specified", res.cause());
             return;
         }
 
@@ -81,10 +85,10 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
                     doUpdate(message);
                     break;
                 case "find":
-//                    doFind(message);
+                    doFind(message);
                     break;
                 case "findone":
-//                    doFindOne(message);
+                    doFindOne(message);
                     break;
  /*               // no need for a backwards compatible "findAndModify" since this feature was added after
                 case "find_and_modify":
@@ -115,7 +119,7 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
                     runCommand(message);
                     break;*/
                 default:
-                    sendError(message, "Invalid action: " + action);
+                    sendError(message, "Invalid action: " + action, res.cause());
             }
         } catch (MongoException e) {
             sendError(message, e.getMessage(), e);
@@ -147,7 +151,7 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
                 sendOK(message, reply);
             } else {
                 LOG.error("Error updating document", res.cause());
-                sendError(message, res.cause().getMessage());
+                sendError(message, res.cause().getMessage(), res.cause());
             }
         });
 
@@ -169,83 +173,169 @@ public class MongoPersistor extends BusModBase implements Handler<Message<JsonOb
         WriteResult res = coll.update(criteria, objNew, upsert, multi, writeConcern);*/
 
     }
-/*
+
     private void doFindOne(Message<JsonObject> message) {
         String collection = getMandatoryString("collection", message);
         if (collection == null) {
             return;
         }
-        JsonObject matcher = message.body().getObject("matcher");
-        JsonObject keys = message.body().getObject("keys");
-        DBCollection coll = db.getCollection(collection);
-        DBObject res;
+        JsonObject matcher = message.body().getJsonObject("matcher");
+        JsonObject keys = message.body().getJsonObject("keys");
+
         if (matcher == null) {
-            res = keys != null ? coll.findOne(null, jsonToDBObject(keys)) : coll.findOne();
-        } else {
-            res = keys != null ? coll.findOne(jsonToDBObject(matcher), jsonToDBObject(keys)) : coll.findOne(jsonToDBObject(matcher));
+            matcher = new JsonObject();
         }
-        JsonObject reply = new JsonObject();
-        if (res != null) {
-            JsonObject m = new JsonObject(res.toMap());
-            reply.putObject("result", m);
-        }
-        sendOK(message, reply);
+
+        mongoClient.findOne(collection, matcher, keys, (AsyncResult<JsonObject> res) -> {
+
+            if (res.succeeded()) {
+                sendOK(message, new JsonObject().put("result", res.result()));
+            } else {
+                LOG.error("Error retrieving one document", res.cause());
+                sendError(message, res.cause().getMessage(), res.cause());
+            }
+
+        });
     }
 
     private void doFind(Message<JsonObject> message) {
+
         String collection = getMandatoryString("collection", message);
         if (collection == null) {
             return;
         }
-        Integer limit = (Integer) message.body().getNumber("limit");
-        if (limit == null) {
-            limit = -1;
-        }
-        Integer skip = (Integer) message.body().getNumber("skip");
-        if (skip == null) {
-            skip = -1;
-        }
-        Integer batchSize = (Integer) message.body().getNumber("batch_size");
-        if (batchSize == null) {
-            batchSize = 100;
-        }
-        Integer timeout = (Integer) message.body().getNumber("timeout");
-        if (timeout == null || timeout < 0) {
-            timeout = 10000; // 10 seconds
-        }
-        JsonObject matcher = message.body().getObject("matcher");
-        JsonObject keys = message.body().getObject("keys");
 
-        Object hint = message.body().getField("hint");
-        Object sort = message.body().getField("sort");
-        DBCollection coll = db.getCollection(collection);
-        DBCursor cursor;
-        if (matcher != null) {
-            cursor = (keys == null) ?
-                    coll.find(jsonToDBObject(matcher)) :
-                    coll.find(jsonToDBObject(matcher), jsonToDBObject(keys));
-        } else {
-            cursor = coll.find();
+        FindOptions options = new FindOptions();
+
+        Integer limit = message.body().getInteger("limit");
+        Integer skip = message.body().getInteger("skip");
+        Object sort = message.body().getValue("sort");
+
+        options.setLimit(limit == null ? FindOptions.DEFAULT_LIMIT : limit)
+                .setSkip(skip == null ? FindOptions.DEFAULT_SKIP : skip)
+                .setSort(sortObjectToJsonObject(sort));
+
+
+        final Integer batchSize = message.body().containsKey("batch_size") ? message.body().getInteger("batch_size") : 100;
+        Integer respTimeout = message.body().getInteger("timeout");
+        final Integer timeout = respTimeout == null || respTimeout < 0 ? 10000 : respTimeout;
+
+        JsonObject matcher = message.body().getJsonObject("matcher");
+        JsonObject keys = message.body().getJsonObject("keys");
+        options.setFields(keys);
+
+        Object hint = message.body().getValue("hint");
+
+        if (matcher == null) {
+            matcher = new JsonObject();
         }
-        if (skip != -1) {
-            cursor.skip(skip);
-        }
-        if (limit != -1) {
-            cursor.limit(limit);
-        }
+        mongoClient.findWithOptions(collection, matcher, options, res -> {
+            if (res.failed()) {
+                sendError(message, "Error finding documents", res.cause());
+            } else {
+                sendBatch(message, res.result(), batchSize, timeout);
+            }
+        });
+
+
+
+
+        /*
+
+
+
         if (sort != null) {
-            cursor.sort(sortObjectToDBObject(sort));
-        }
+        }*/
         if (hint != null) {
-            if (hint instanceof JsonObject) {
+            throw new UnsupportedOperationException("Hint is currently not supported");
+            /*if (hint instanceof JsonObject) {
                 cursor.hint(jsonToDBObject((JsonObject) hint));
             } else if (hint instanceof String) {
                 cursor.hint((String) hint);
             } else {
                 throw new IllegalArgumentException("Cannot handle type " + hint.getClass().getSimpleName());
-            }
+            }*/
         }
-        sendBatch(message, cursor, batchSize, timeout);
     }
-*/
+
+    private JsonObject sortObjectToJsonObject(Object sortObj) {
+        if (sortObj == null) {
+            return null;
+        }
+        if (sortObj instanceof JsonObject) {
+            return (JsonObject) sortObj;
+        } else if (sortObj instanceof JsonArray) {
+            JsonArray sortJsonObjects = (JsonArray) sortObj;
+            JsonObject sortDBObject = new JsonObject();
+            for (Object curSortObj : sortJsonObjects) {
+                if (!(curSortObj instanceof JsonObject)) {
+                    throw new IllegalArgumentException("Cannot handle type "
+                            + curSortObj.getClass().getSimpleName());
+                }
+
+                sortDBObject.mergeIn((JsonObject) curSortObj);
+            }
+
+            return sortDBObject;
+        } else {
+            throw new IllegalArgumentException("Cannot handle type " + sortObj.getClass().getSimpleName());
+        }
+    }
+
+    private void sendBatch(Message<JsonObject> message, final List<JsonObject> results, final int max, final int timeout) {
+        int count = 0;
+        JsonArray resultsToSend = new JsonArray();
+
+        if (resultsToSend.size() <= max) {
+            JsonObject reply = createBatchMessage("ok", new JsonArray(results));
+            message.reply(reply);
+        } else {
+            sendError(message, "result size > max", new RuntimeException("result size > max. batching responding is not implemented."));
+        }
+/*
+        while (results.hasNext() && count < max) {
+            DBObject obj = results.next();
+            JsonObject m = dbObjectToJsonObject(obj);
+            results.add(m);
+            count++;
+        }
+        if (results.hasNext()) {
+            JsonObject reply = createBatchMessage("more-exist", results);
+
+            // If the user doesn't reply within timeout, close the results
+            final long timerID = vertx.setTimer(timeout, new Handler<Long>() {
+                @Override
+                public void handle(Long timerID) {
+                    container.logger().warn("Closing DB results on timeout");
+                    try {
+                        results.close();
+                    } catch (Exception ignore) {
+                    }
+                }
+            });
+
+
+            message.reply(reply, new Handler<Message<JsonObject>>() {
+                @Override
+                public void handle(Message<JsonObject> msg) {
+                    vertx.cancelTimer(timerID);
+                    // Get the next batch
+                    sendBatch(msg, results, max, timeout);
+                }
+            });
+
+        } else {
+            JsonObject reply = createBatchMessage("ok", results);
+            message.reply(reply);
+            results.close();
+        }*/
+    }
+
+    private JsonObject createBatchMessage(String status, JsonArray results) {
+        JsonObject reply = new JsonObject();
+        reply.put("results", results);
+        reply.put("status", status);
+        reply.put("number", results.size());
+        return reply;
+    }
 }
